@@ -37,8 +37,15 @@ Learners will:
 Structure, Inspect, Constrain, Transfer, Measure, Position, Challenge. It
 opens on Clever Hans as a cross-domain hook and closes on a learner challenge.
 
-Open it directly in a browser. No build step and no network access are
-required, because reveal.js is vendored in `reveal.js/dist/`.
+**If you are reading this from inside a ZIP archive, extract the whole archive
+before opening the deck, or open `slides/deck-standalone.html` instead.**
+`index.html` loads reveal.js from `../reveal.js/dist/`, so opening it on its own
+without the rest of the folder renders one long unstyled page.
+`slides/deck-standalone.html` is the identical deck with every stylesheet,
+script and image inlined into a single 2 MB file that depends on nothing else.
+
+Otherwise open either file directly in a browser. No build step and no network
+access are required, because reveal.js is vendored in `reveal.js/dist/`.
 
 ```
 # macOS / Linux
