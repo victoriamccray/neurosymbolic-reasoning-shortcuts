@@ -1,0 +1,1145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Reasoning Shortcuts in Neurosymbolic Learning</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="stylesheet" href="../reveal.js/dist/reveal.css" />
+  <link rel="stylesheet" href="../reveal.js/dist/theme/black.css" />
+  <link rel="stylesheet" href="../reveal.js/dist/plugin/highlight/monokai.css" />
+
+  <style>
+    :root {
+      --accent: #4fd1c5;
+      --warn:   #ff6b6b;
+      --dim:    #7a8291;
+      --ink:    #e8eaed;
+      --panel:  #1b1f27;
+    }
+    .reveal { font-family: 'Helvetica Neue', Arial, sans-serif; color: var(--ink); }
+    .reveal h1, .reveal h2, .reveal h3 { text-transform: none; letter-spacing: -0.01em; }
+    .reveal h1 { font-size: 1.8em; }
+    .reveal h2 { font-size: 1.22em; color: var(--accent); margin-bottom: 0.45em; line-height: 1.2; }
+    .reveal h3 { font-size: 0.9em; color: var(--ink); }
+    .reveal section { text-align: left; font-size: 0.9em; }
+    .reveal section.center, .reveal section.center h1, .reveal section.center h2 { text-align: center; }
+    .reveal p { line-height: 1.32; }
+    .reveal .lead    { font-size: 1.18em; font-weight: 600; }
+    .reveal .big     { font-size: 1.45em; font-weight: 700; }
+    .reveal .accent  { color: var(--accent); }
+    .reveal .warn    { color: var(--warn); }
+    .reveal .dim     { color: var(--dim); }
+    .reveal .kicker  { font-size: 0.5em; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); margin: 0; }
+    .reveal .citation{ font-size: 0.36em; color: var(--dim); margin-top: 0.9em; line-height: 1.5; }
+    .reveal .note    { font-size: 0.6em; color: var(--dim); }
+    .reveal code     { font-size: 0.95em; }
+    .reveal table    { margin: 0 auto; font-size: 0.76em; }
+    .reveal table th, .reveal table td { text-align: center; padding: 0.2em 0.65em; border: none; vertical-align: middle; }
+    .reveal table th { color: var(--dim); font-weight: 600; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.06em; }
+
+    /* ---- Stage stepper: where the learner is in the lifecycle ---- */
+    .stepper {
+      position: absolute; top: -0.2em; left: 0; right: 0;
+      display: flex; justify-content: center; gap: 0.34em;
+      font-size: 0.3em; letter-spacing: 0.06em; text-transform: uppercase;
+    }
+    .stepper .step { color: #3a4049; padding-bottom: 0.35em; border-bottom: 2px solid #2a2f38; }
+    .stepper .step.done { color: var(--dim); border-bottom-color: var(--dim); }
+    .stepper .step.here { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
+
+    /* ---- Four-factor motif: which factor is under examination ---- */
+    .causes { display: flex; gap: 0.45em; justify-content: center; margin: 0.8em 0 0.45em 0; font-size: 0.38em; }
+    .causes .cause {
+      padding: 0.42em 0.9em; border: 2px solid #333a44; border-radius: 999px;
+      color: #4d545e; letter-spacing: 0.04em;
+    }
+    .causes .cause.done   { border-color: var(--dim); color: var(--dim); }
+    .causes .cause.active { border-color: var(--warn); color: #fff; background: var(--warn); font-weight: 700; }
+
+    /* ---- Simulated run: code cell, then recorded output ---- */
+    .cell {
+      background: var(--panel); border-left: 3px solid var(--accent);
+      border-radius: 4px; padding: 0.5em 0.85em; margin: 0.35em auto; max-width: 800px;
+      font-family: 'SF Mono', Consolas, monospace; font-size: 0.48em; line-height: 1.55; text-align: left;
+      white-space: pre; overflow-x: auto;
+    }
+    .cell .cm { color: var(--dim); }
+    .cell .kw { color: #c792ea; }
+    .cell .st { color: #c3e88d; }
+    .cell .fn { color: #82aaff; }
+    .out {
+      background: #12151b; border-left: 3px solid var(--dim);
+      border-radius: 4px; padding: 0.5em 0.85em; margin: 0.35em auto; max-width: 800px;
+      font-family: 'SF Mono', Consolas, monospace; font-size: 0.48em; line-height: 1.6; text-align: left;
+      white-space: pre; overflow-x: auto;
+    }
+    .out .k { color: var(--dim); }
+    .out .good { color: var(--accent); font-weight: 700; }
+    .out .bad  { color: var(--warn);  font-weight: 700; }
+    .running { color: var(--dim); font-size: 0.48em; font-family: Consolas, monospace; text-align: center; margin: 0.25em 0; }
+    .running::after {
+      content: ''; display: inline-block; width: 0.7em; height: 0.7em; margin-left: 0.5em;
+      border: 2px solid #333a44; border-top-color: var(--accent); border-radius: 50%;
+      vertical-align: -0.1em; animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .runlabel { font-size: 0.36em; color: var(--dim); text-align: center; letter-spacing: 0.08em; text-transform: uppercase; margin: 0.1em 0 0 0; }
+
+    /* ---- Metric cards ---- */
+    .metrics { display: flex; gap: 0.5em; justify-content: center; flex-wrap: wrap; margin: 0.35em 0; }
+    .metric {
+      border: 2px solid #333a44; border-radius: 10px; padding: 0.42em 0.8em; min-width: 4.4em; text-align: center;
+    }
+    .metric .label { font-size: 0.34em; color: var(--dim); text-transform: uppercase; letter-spacing: 0.07em; line-height: 1.3; }
+    .metric .value { font-size: 0.9em; font-weight: 800; margin-top: 0.15em; }
+    .metric.good { border-color: var(--accent); } .metric.good .value { color: var(--accent); }
+    .metric.bad  { border-color: var(--warn);   } .metric.bad  .value { color: var(--warn); }
+
+    .flip td.flipped { color: var(--warn); font-weight: 700; }
+    .flip td.same    { color: var(--accent); }
+    .confusion-img { max-height: 355px; border-radius: 6px; box-shadow: 0 0 26px rgba(0,0,0,0.55); }
+    .paper-img { max-width: 100%; border-radius: 6px; background: #fff; padding: 6px; box-shadow: 0 0 22px rgba(0,0,0,0.5); }
+    .src { font-size: 0.33em; color: var(--dim); text-align: center; margin: 0.35em 0 0 0; line-height: 1.45; }
+
+    .cols { display: flex; gap: 1.3em; margin-top: 0.45em; }
+    .cols > div { flex: 1; }
+    .card { background: var(--panel); border-radius: 8px; padding: 0.6em 0.85em; font-size: 0.68em; }
+    .card h3 { margin: 0 0 0.3em 0; font-size: 0.95em; }
+    .card p { margin: 0.2em 0; }
+
+    /* ---- Domain cards for the cross-field slide ---- */
+    .domains { display: flex; gap: 0.55em; margin-top: 0.5em; }
+    .domain {
+      flex: 1; background: var(--panel); border-radius: 8px; padding: 0.55em 0.6em; text-align: center;
+      border-top: 3px solid #333a44;
+    }
+    .domain.here { border-top-color: var(--warn); }
+    .domain .dname { font-size: 0.42em; text-transform: uppercase; letter-spacing: 0.07em; color: var(--dim); }
+    .domain .obs   { font-size: 0.5em; color: var(--ink); margin: 0.35em 0 0.25em 0; font-weight: 600; }
+    .domain .alt   { font-size: 0.44em; color: var(--warn); line-height: 1.35; }
+    .domain .gap   { font-size: 0.4em; color: var(--accent); margin-top: 0.4em; letter-spacing: 0.05em; }
+
+    .band {
+      border: 1px solid #2a2f38; border-left: 3px solid var(--accent); border-radius: 6px;
+      padding: 0.5em 0.8em; margin-top: 0.7em; font-size: 0.6em; color: var(--dim);
+    }
+    .band b { color: var(--accent); font-weight: 600; }
+
+    /* ---- 2x2 support grid for the shift explanation ---- */
+    .grid2 { display: inline-block; margin: 0 0.5em; vertical-align: top; }
+    .grid2 table { font-size: 0.52em; border-collapse: collapse; }
+    .grid2 td.cellbox {
+      width: 6.4em; height: 3.2em; border: 2px solid #2f3640; border-radius: 6px;
+      font-size: 0.92em; line-height: 1.3;
+    }
+    .grid2 td.seen  { border-color: var(--accent); background: rgba(79,209,197,0.12); }
+    .grid2 td.unseen{ border-color: var(--warn);   background: rgba(255,107,107,0.12); }
+    .grid2 td.empty { color: #3a4049; }
+    .grid2 .cap { font-size: 0.55em; color: var(--dim); text-transform: uppercase; letter-spacing: 0.08em; }
+
+    .glossary { font-size: 0.48em; color: var(--dim); border-top: 1px solid #2a2f38; padding-top: 0.45em; margin-top: 0.8em; }
+    .glossary b { color: #9aa3b0; font-weight: 600; }
+
+    .reveal .badge {
+      display: inline-block; font-size: 0.34em; letter-spacing: 0.09em; text-transform: uppercase;
+      border: 1px solid var(--dim); color: var(--dim); border-radius: 999px; padding: 0.25em 0.8em; margin-bottom: 0.45em;
+    }
+    .reveal .badge.cited { border-color: var(--accent); color: var(--accent); }
+
+    /* ---- Clever Hans animation ---- */
+    .hoof { transform-box: view-box; transform-origin: 390px 152px; animation: hooftap 3s infinite; }
+    @keyframes hooftap {
+      0%, 12%  { transform: rotate(0deg); }
+      16%      { transform: rotate(-26deg); }
+      20%, 32% { transform: rotate(0deg); }
+      36%      { transform: rotate(-26deg); }
+      40%, 52% { transform: rotate(0deg); }
+      56%      { transform: rotate(-26deg); }
+      60%,100% { transform: rotate(0deg); }
+    }
+    .asker { transform-box: view-box; transform-origin: 96px 206px; animation: lean 3s infinite; }
+    @keyframes lean {
+      0%, 8%  { transform: rotate(0deg); }
+      52%     { transform: rotate(-4.5deg); }
+      60%     { transform: rotate(0.8deg); }
+      72%,100%{ transform: rotate(0deg); }
+    }
+    .puff { animation: puff 3s infinite; transform-box: fill-box; transform-origin: center; }
+    @keyframes puff {
+      0%,15%   { opacity: 0; transform: scale(0.4); }
+      19%      { opacity: 0.75; transform: scale(1); }
+      27%,35%  { opacity: 0; transform: scale(0.4); }
+      39%      { opacity: 0.75; transform: scale(1); }
+      47%,55%  { opacity: 0; transform: scale(0.4); }
+      59%      { opacity: 0.75; transform: scale(1); }
+      67%,100% { opacity: 0; transform: scale(0.4); }
+    }
+    .tally { animation: tally 3s infinite; }
+    .tally.t2 { animation-delay: 0.6s; }
+    .tally.t3 { animation-delay: 1.2s; }
+    @keyframes tally { 0%,17% { opacity: 0; } 20%,64% { opacity: 1; } 68%,100% { opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) {
+      .hoof, .asker, .puff, .tally, .running::after { animation: none; }
+    }
+
+    /* ---- Fit-to-slide wrapper: inserted by script, scales any slide that would overflow ---- */
+    /* flow-root stops the first child's top margin collapsing out of the wrapper,
+       which would drag the absolutely positioned stepper down onto the heading. */
+    .reveal .slides > section > .fit-wrap { position: relative; width: 100%; display: flow-root; }
+  </style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- ══════════════════ SECTION 1 | THE PUZZLE ══════════════════ -->
+
+<!-- 1 -->
+<section class="center">
+  <p class="kicker">Neurosymbolic learning · education track</p>
+  <h1 style="margin-top:0.5em;">Reasoning shortcuts in<br/>neurosymbolic learning</h1>
+  <p class="lead accent" style="margin-top:0.4em;">When correct outputs hide invalid concepts.</p>
+  <p class="citation">
+    Worked example: Marconato, Teso, Vergari &amp; Passerini (2023).<br/>
+    <em>Not All Neuro-Symbolic Concepts Are Created Equal: Analysis and Mitigation of Reasoning Shortcuts.</em>
+    NeurIPS 2023. arXiv:2305.19951
+  </p>
+</section>
+
+<!-- 2 -->
+<section>
+  <div class="stepper">
+    <span class="step here">1 · Puzzle</span><span class="step">2 · Structure</span><span class="step">3 · Inspect</span>
+    <span class="step">4 · Constrain</span><span class="step">5 · Transfer</span><span class="step">6 · Measure</span>
+    <span class="step">7 · Position</span><span class="step">8 · Challenge</span>
+  </div>
+  <h2 style="margin-top:1.1em;">A horse that could not do arithmetic</h2>
+
+  <svg viewBox="0 0 620 230" style="width:100%; max-width:430px; display:block; margin:0 auto;">
+    <line x1="30" y1="206" x2="600" y2="206" stroke="#2a2f38" stroke-width="3"/>
+
+    <!-- questioner, whose posture tightens as the taps approach the answer -->
+    <g class="asker" fill="#e8eaed">
+      <circle cx="96" cy="104" r="14"/>
+      <rect x="87" y="121" width="19" height="52" rx="8"/>
+      <rect x="88" y="172" width="7" height="34" rx="3"/>
+      <rect x="99" y="172" width="7" height="34" rx="3"/>
+      <rect x="104" y="128" width="30" height="6" rx="3"/>
+    </g>
+    <text x="96" y="226" fill="#7a8291" font-size="13" text-anchor="middle" font-family="Helvetica">questioner</text>
+
+    <!-- horse, facing the questioner -->
+    <g>
+      <path d="M524,104 C548,118 548,152 534,176" stroke="#343b46" stroke-width="10" fill="none" stroke-linecap="round"/>
+      <rect x="496" y="152" width="15" height="56" rx="6" fill="#343b46"/>
+      <rect x="404" y="152" width="15" height="56" rx="6" fill="#343b46"/>
+      <ellipse cx="458" cy="126" rx="68" ry="33" fill="#3b424e"/>
+      <polygon points="382,128 350,62 372,48 418,112" fill="#3b424e"/>
+      <polygon points="372,48 418,112 408,118 362,54" fill="#2f3640"/>
+      <polygon points="372,48 358,72 306,78 296,64 310,44 352,38" fill="#3b424e"/>
+      <polygon points="348,38 350,17 362,34" fill="#3b424e"/>
+      <polygon points="362,34 369,16 376,36" fill="#3b424e"/>
+      <circle cx="340" cy="52" r="3.4" fill="#12151b"/>
+      <rect x="474" y="152" width="15" height="56" rx="6" fill="#454d5b"/>
+      <g class="hoof"><rect x="382" y="148" width="15" height="60" rx="6" fill="#454d5b"/></g>
+    </g>
+    <text x="455" y="226" fill="#7a8291" font-size="13" text-anchor="middle" font-family="Helvetica">Hans</text>
+
+    <ellipse class="puff" cx="390" cy="205" rx="17" ry="4" fill="#4fd1c5"/>
+
+    <g stroke="#4fd1c5" stroke-width="4" stroke-linecap="round">
+      <line class="tally"    x1="228" y1="160" x2="228" y2="188"/>
+      <line class="tally t2" x1="240" y1="160" x2="240" y2="188"/>
+      <line class="tally t3" x1="252" y1="160" x2="252" y2="188"/>
+    </g>
+    <text x="240" y="150" fill="#7a8291" font-size="12" text-anchor="middle" font-family="Helvetica">taps counted</text>
+  </svg>
+
+  <div class="cols" style="margin-top:0.3em;">
+    <div class="card" style="font-size:0.58em;">
+      <h3 class="accent">The setup</h3>
+      <p><b>Question.</b> Asked aloud by a person standing in view.</p>
+      <p><b>Response.</b> Hans taps a foreleg; the tap count is read as the answer.</p>
+      <p><b>Observed.</b> Correct on 89% of questions.</p>
+    </div>
+    <div class="card" style="font-size:0.58em;">
+      <h3 class="warn">Pfungst's manipulation</h3>
+      <p><b>Change one thing.</b> The questioner asks a question whose answer the questioner does not know.</p>
+      <p><b>Observed.</b> Correct on 6% of questions.</p>
+      <p><b>Mechanism.</b> Posture tightened as the taps approached the answer and released on the correct tap. Hans was reading the release.</p>
+    </div>
+  </div>
+  <p class="lead accent fragment" style="text-align:center; margin-top:0.45em; font-size:1.05em;">
+    Observed success does not identify the mechanism producing it.
+  </p>
+  <p class="citation">Example and both figures from Pfungst, O. (1911), <em>Clever Hans (The Horse of Mr. von Osten): A Contribution to Experimental Animal and Human Psychology</em>, trans. C. L. Rahn, New York: Henry Holt. For the term's use in machine learning: Lapuschkin, Wäldchen, Binder, Montavon, Samek &amp; Müller (2019), "Unmasking Clever Hans predictors and assessing what machines really learn," <em>Nature Communications</em> 10:1096.</p>
+</section>
+
+<!-- 3 -->
+<section>
+  <h2>Measuring algorithmic bias across several fields</h2>
+  <p class="dim" style="font-size:0.72em; margin-top:0.2em;">In each domain a score is observed, the mechanism producing it stays latent, and the field has its own name for the gap between the two.</p>
+
+  <div class="domains">
+    <div class="domain">
+      <svg viewBox="0 0 60 34" style="height:30px;"><path d="M18,4 L14,22 Q30,32 46,22 L42,4 Z" fill="none" stroke="#7a8291" stroke-width="3"/></svg>
+      <div class="dname">Animal cognition</div>
+      <div class="obs">Correct hoof count</div>
+      <div class="alt">posture cues</div>
+      <div class="gap">Clever Hans effect</div>
+    </div>
+    <div class="domain">
+      <svg viewBox="0 0 60 34" style="height:30px;"><rect x="14" y="3" width="32" height="28" rx="3" fill="none" stroke="#7a8291" stroke-width="3"/><line x1="21" y1="12" x2="39" y2="12" stroke="#7a8291" stroke-width="3"/><line x1="21" y1="21" x2="33" y2="21" stroke="#7a8291" stroke-width="3"/></svg>
+      <div class="dname">Educational testing</div>
+      <div class="obs">Correct exam answer</div>
+      <div class="alt">memorised pattern, item cues</div>
+      <div class="gap">Construct irrelevant variance</div>
+    </div>
+    <div class="domain">
+      <svg viewBox="0 0 60 34" style="height:30px;"><rect x="8" y="12" width="44" height="14" rx="3" fill="none" stroke="#7a8291" stroke-width="3"/><line x1="19" y1="12" x2="19" y2="5" stroke="#7a8291" stroke-width="3"/><line x1="30" y1="12" x2="30" y2="3" stroke="#7a8291" stroke-width="3"/><line x1="41" y1="12" x2="41" y2="5" stroke="#7a8291" stroke-width="3"/></svg>
+      <div class="dname">Psychometrics</div>
+      <div class="obs">High scale score</div>
+      <div class="alt">response style, proxy trait</div>
+      <div class="gap">Construct validity</div>
+    </div>
+    <div class="domain here">
+      <svg viewBox="0 0 60 34" style="height:30px;"><circle cx="14" cy="17" r="6" fill="none" stroke="#ff6b6b" stroke-width="3"/><circle cx="34" cy="7"  r="6" fill="none" stroke="#ff6b6b" stroke-width="3"/><circle cx="34" cy="27" r="6" fill="none" stroke="#ff6b6b" stroke-width="3"/><circle cx="52" cy="17" r="5" fill="none" stroke="#ff6b6b" stroke-width="3"/><line x1="20" y1="14" x2="28" y2="9"  stroke="#ff6b6b" stroke-width="2"/><line x1="20" y1="20" x2="28" y2="25" stroke="#ff6b6b" stroke-width="2"/><line x1="40" y1="9"  x2="47" y2="14" stroke="#ff6b6b" stroke-width="2"/><line x1="40" y1="25" x2="47" y2="20" stroke="#ff6b6b" stroke-width="2"/></svg>
+      <div class="dname">Neurosymbolic AI</div>
+      <div class="obs">Correct task label</div>
+      <div class="alt">a reasoning shortcut</div>
+      <div class="gap">Concept quality</div>
+    </div>
+  </div>
+
+  <div class="band fragment">
+    <b>What all four columns require.</b> Two scores reported separately: the outcome, and the evidence about the mechanism behind it. Here that is task accuracy and concept F1, each with its assumptions stated.
+  </div>
+  <p class="citation">Validity is a property of an interpretation rather than of an instrument: Messick (1995), <em>American Psychologist</em> 50(9). Carried into ML evaluation by Jacobs &amp; Wallach (2021), "Measurement and Fairness," <em>FAccT</em>.</p>
+</section>
+
+<!-- 4 -->
+<section>
+  <h2>Related concepts in algorithmic bias</h2>
+  <div class="cols">
+    <div class="card" style="font-size:0.6em;">
+      <h3 class="dim">Underrepresentation</h3>
+      <p>Some concept combinations are thin or absent in the training support.</p>
+      <p class="accent" style="font-size:0.9em;">Diagnostic: a combination frequency table, computed before training.</p>
+    </div>
+    <div class="card" style="font-size:0.6em;">
+      <h3 class="dim">Label choice and proxies</h3>
+      <p>The recorded target stands in for the construct actually wanted. Obermeyer et al. (2019) found a widely deployed health algorithm predicting <em>cost</em> as a proxy for <em>need</em>; at equal risk scores, Black patients were considerably sicker.</p>
+      <p class="accent" style="font-size:0.9em;">Accuracy against the recorded label stayed high throughout.</p>
+    </div>
+    <div class="card" style="font-size:0.6em;">
+      <h3 class="warn">Reasoning shortcut</h3>
+      <p>The target is the intended one and the label is correct, while the concepts the model reasons over carry unintended semantics.</p>
+      <p class="accent" style="font-size:0.9em;">Diagnostic: evidence about the latent concepts themselves.</p>
+    </div>
+  </div>
+  <div class="band fragment">
+    <b style="font-size:0.95em;">Recent work makes the middle column testable.</b> Coston (2026) proposes a falsification test for <em>discriminant validity</em>: an algorithm should predict its intended outcome better than an impermissible proxy. Applied to an admissions setting, the test established discriminant validity with respect to gender and failed to establish it with respect to race. The same logic drives this deck: state the mechanism you claim, then run a test that could contradict it.
+  </div>
+  <p class="citation">Obermeyer, Powers, Vogeli &amp; Mullainathan (2019), "Dissecting racial bias in an algorithm used to manage the health of populations," <em>Science</em> 366:447. Coston (2026), "Falsifying Discriminant Validity of Predictive Algorithms," arXiv:2601.17146.</p>
+</section>
+
+<!-- 5 -->
+<section>
+  <h2>What a neurosymbolic model does, and the four places a shortcut enters</h2>
+  <div style="display:flex; gap:1em; align-items:flex-start;">
+    <div style="flex:0 0 19%;">
+      <img class="paper-img" src="assets/rsbench_fig2_bdd_infer_train.png" alt="A NeSy predictor on a real dashcam image: the network produces concepts for green light, red light and pedestrian, and prior knowledge maps them to the safe actions" />
+      <p class="src">Bortolotti, Marconato et al. (2024), rsbench, Fig. 2. A real dashcam frame from BDD-OIA. Reproduced under CC BY-SA 4.0.</p>
+    </div>
+    <div style="flex:1;">
+      <p style="font-size:0.64em; margin-top:0;">A <b>neurosymbolic (NeSy)</b> model splits the task in two. A neural encoder maps raw input to <em>concepts</em>. A fixed, known rule maps those concepts to the label. Marconato et al. (2023) identify four properties of that pipeline that jointly govern whether a shortcut exists.</p>
+      <table style="font-size:0.55em; margin-top:0.35em;"><tr><th>Factor</th><th>Where it acts</th><th>What it fixes</th></tr>
+        <tr><td class="warn">Prior knowledge <code>K</code></td><td>the symbolic rule</td><td class="dim">how many concept assignments produce the right label</td></tr>
+        <tr class="fragment"><td class="warn">Data structure and support</td><td>the training set</td><td class="dim">which concept combinations are ever observed</td></tr>
+        <tr class="fragment"><td class="warn">Learning objective</td><td>the loss</td><td class="dim">which of those assignments are scored as optimal</td></tr>
+        <tr class="fragment"><td class="warn">Concept extractor architecture</td><td>the encoder</td><td class="dim">which assignments the encoder is able to represent</td></tr>
+      </table>
+      <p class="fragment" style="font-size:0.62em; margin-top:0.45em;">Training pressure arrives at the label end only. Whatever concept values make the label come out right are, as far as the loss is concerned, correct ones.</p>
+    </div>
+  </div>
+  <p class="citation">Four factors: Marconato, Teso, Vergari &amp; Passerini (2023), arXiv:2305.19951. Figure: Bortolotti et al. (2024), "A Neuro-Symbolic Benchmark Suite for Concept Quality and Reasoning Shortcuts," NeurIPS 2024 Datasets &amp; Benchmarks, arXiv:2406.10368.</p>
+</section>
+
+<!-- 6 -->
+<section>
+  <h2>Definition</h2>
+  <p style="font-size:0.78em; margin:0 0 0.45em 0;">A <b>reasoning shortcut (RS)</b> is a learned concept distribution that satisfies both of the following.</p>
+  <div class="cols">
+    <div class="card" style="border-left:3px solid var(--accent);">
+      <h3 class="accent">Condition 1</h3>
+      <p style="font-size:1.05em;">It attains <b>maximal or near maximal likelihood</b> on the training objective.</p>
+      <p class="dim">Checked by showing task accuracy has reached its ceiling.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--warn);">
+      <h3 class="warn">Condition 2</h3>
+      <p style="font-size:1.05em;">It <b>diverges from ground truth concept semantics</b>.</p>
+      <p class="dim">Checked by scoring the latent concepts against held out concept annotations.</p>
+    </div>
+  </div>
+  <p class="fragment" style="font-size:0.76em; margin-top:0.6em;">Both conditions are required. A low concept score on its own is equally consistent with an undertrained or poorly optimised model, which is an ordinary engineering failure with an ordinary fix.</p>
+  <p class="glossary fragment"><b>Ground truth</b> is verified, accurate data used as a benchmark to train, validate and test a model. Here the ground truth concept annotations are the true digit identities, or the true presence of a pedestrian. They are withheld from training and used only for scoring, which is what makes condition 2 measurable.</p>
+  <p class="citation">Definition 1, Marconato et al. (2023), arXiv:2305.19951.</p>
+</section>
+
+<!-- ══════════════════ SECTION 2 | EXACT STRUCTURAL EXAMPLE ══════════════════ -->
+
+<!-- 7 -->
+<section>
+  <div class="stepper">
+    <span class="step done">1 · Puzzle</span><span class="step here">2 · Structure</span><span class="step">3 · Inspect</span>
+    <span class="step">4 · Constrain</span><span class="step">5 · Transfer</span><span class="step">6 · Measure</span>
+    <span class="step">7 · Position</span><span class="step">8 · Challenge</span>
+  </div>
+  <h2 style="margin-top:1.1em;">Before any network: three concepts and one rule</h2>
+  <div class="cols">
+    <div class="card" style="font-size:0.55em;">
+      <h3 class="accent">The rule</h3>
+      <p style="font-size:1.15em; margin:0.3em 0;"><code>Y = G1 ⊕ G2 ⊕ G3</code></p>
+      <p>Exclusive or over three binary concepts, also called a <b>parity check</b>. The label is 1 when an odd number of the three concepts are on.</p>
+      <p>This is prior knowledge <code>K</code>: supplied by the modeller, held fixed, learned by nothing.</p>
+    </div>
+    <div class="card" style="font-size:0.55em;">
+      <h3 class="accent">Where it comes from</h3>
+      <p>A <b>parity check</b> is an error detection method that adds one extra binary digit to a block of data, chosen so that the total sum of the bits comes out even or odd as agreed. Receiving a block whose sum breaks that agreement flags a corrupted bit.</p>
+      <p>Marconato et al. (2023) analyse it because it is the smallest knowledge base whose label optimal concept assignments are provably many. It ships as the <code>MNLogic XOR</code> task in <b>rsbench</b>.</p>
+    </div>
+    <div class="card" style="font-size:0.55em;">
+      <h3 class="accent">What it stands for</h3>
+      <p>Any rule whose output depends on a joint pattern of conditions rather than on any one of them: a checksum over transmitted bits, an odd number of risk factors present, an even number of safety interlocks open.</p>
+      <p>Three binary concepts give eight possible inputs in total.</p>
+    </div>
+  </div>
+  <p class="lead fragment" style="text-align:center; margin-top:0.6em; font-size:0.95em;">
+    Question to hold onto: how many assignments of meaning to <code>G1, G2, G3</code><br/>reproduce all eight labels exactly?
+  </p>
+</section>
+
+<!-- 8 -->
+<section class="center">
+  <h2>All eight inputs, each with its correct label</h2>
+  <p class="dim" style="font-size:0.58em; max-width:900px; margin:0 auto;">
+    A dataset has <b>exhaustive concept support</b> when every combination of the concepts occurs in it. With three binary concepts there are 2³ = 8 combinations, and all eight are below, each paired with its true label. Nothing is held out, nothing is rare, and no further example exists to collect. This matters because the usual remedy for a model that behaves oddly is to gather more or better balanced data, and here that remedy is already fully applied before training starts.
+  </p>
+  <div class="cell" style="margin-top:0.5em;"><span class="cm"># enumerate the input space, then apply the rule</span>
+xor_table[<span class="st">"label"</span>] = xor_table.g1 ^ xor_table.g2 ^ xor_table.g3</div>
+  <p class="runlabel fragment">recorded output · reasoning_shortcuts.ipynb</p>
+  <table class="fragment" style="margin-top:0.15em; font-size:0.68em;">
+    <tr><th>g1</th><th>g2</th><th>g3</th><th>label</th></tr>
+    <tr><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+    <tr><td>0</td><td>0</td><td>1</td><td>1</td></tr>
+    <tr><td>0</td><td>1</td><td>0</td><td>1</td></tr>
+    <tr><td>0</td><td>1</td><td>1</td><td>0</td></tr>
+    <tr><td>1</td><td>0</td><td>0</td><td>1</td></tr>
+    <tr><td>1</td><td>0</td><td>1</td><td>0</td></tr>
+    <tr><td>1</td><td>1</td><td>0</td><td>0</td></tr>
+    <tr><td>1</td><td>1</td><td>1</td><td>1</td></tr>
+  </table>
+</section>
+
+<!-- 9 -->
+<section>
+  <h2>A pairwise flip is a rival meaning for the concepts</h2>
+  <div class="cols">
+    <div class="card">
+      <h3 class="accent">What a flip is</h3>
+      <p>An encoder that has learned <code>G1</code> and <code>G2</code> <em>inverted</em>: whenever the true concept is 0 it reports 1, and whenever the true concept is 1 it reports 0. <code>G3</code> is read correctly.</p>
+      <p>This is a complete, self consistent alternative semantics, wrong about two of the three concepts on every single row.</p>
+    </div>
+    <div class="card">
+      <h3 class="accent">Why the labels survive</h3>
+      <p style="font-family:Consolas,monospace; font-size:0.95em; margin:0.4em 0;">(1⊕g1) ⊕ (1⊕g2) ⊕ g3<br/>= 1 ⊕ 1 ⊕ g1 ⊕ g2 ⊕ g3<br/>= g1 ⊕ g2 ⊕ g3</p>
+      <p>The two inversions cancel. Parity is blind to flipping an <em>even</em> number of its inputs, so every label is reproduced exactly.</p>
+    </div>
+    <div class="card">
+      <h3 class="accent">Why enumerate them</h3>
+      <p>Counting the flips that survive counts how many distinct concept mappings the rule alone is unable to rule out. That count is a property of <code>K</code>, computable before any training run.</p>
+      <p>If the count is greater than one, the rule cannot pin the concepts down, and more data will not change that.</p>
+    </div>
+  </div>
+  <table class="flip fragment" style="font-size:0.68em; margin-top:0.6em;">
+    <tr><th>g1</th><th>g2</th><th>g3</th><th>label</th><th style="padding:0 0.5em;"></th><th class="warn">g1 flipped</th><th class="warn">g2 flipped</th><th>g3</th><th>label</th></tr>
+    <tr><td>0</td><td>0</td><td>0</td><td>0</td><td class="dim">→</td><td class="flipped">1</td><td class="flipped">1</td><td>0</td><td class="same">0 ✓</td></tr>
+    <tr><td>0</td><td>1</td><td>1</td><td>0</td><td class="dim">→</td><td class="flipped">1</td><td class="flipped">0</td><td>1</td><td class="same">0 ✓</td></tr>
+    <tr><td>1</td><td>0</td><td>0</td><td>1</td><td class="dim">→</td><td class="flipped">0</td><td class="flipped">1</td><td>0</td><td class="same">1 ✓</td></tr>
+    <tr><td colspan="10" class="dim" style="font-size:0.85em; padding-top:0.5em;">three rows shown; the remaining five behave identically</td></tr>
+  </table>
+</section>
+
+<!-- 10 -->
+<section class="center">
+  <div class="causes">
+    <span class="cause active">Prior knowledge</span><span class="cause">Data support</span><span class="cause">Objective</span><span class="cause">Architecture</span>
+  </div>
+  <h2>The rule alone leaves four concept mappings, all of them label perfect</h2>
+  <div class="cell"><span class="kw">for</span> pair <span class="kw">in</span> itertools.<span class="fn">combinations</span>([<span class="st">"g1"</span>,<span class="st">"g2"</span>,<span class="st">"g3"</span>], <span class="st">2</span>): ...</div>
+  <p class="runlabel fragment">recorded output</p>
+  <div class="out fragment"><span class="k">flip ('g1','g2'):</span> label preserved on all 8 rows = <span class="good">True</span>
+<span class="k">flip ('g1','g3'):</span> label preserved on all 8 rows = <span class="good">True</span>
+<span class="k">flip ('g2','g3'):</span> label preserved on all 8 rows = <span class="good">True</span>
+
+<span class="k">flip all three:</span>  label preserved on all 8 rows = <span class="bad">False</span></div>
+  <p class="fragment" style="font-size:0.72em; margin-top:0.4em;">Three pairwise flips survive, each wrong about two concepts on every row. Flipping all three fails, because an odd number of inversions changes the parity. Counting the intended assignment, <b>four</b> label optimal solutions coexist, and the training objective scores all four identically.</p>
+  <p class="fragment accent" style="font-size:0.72em;">Enumerating by hand works at three concepts. At realistic sizes, rsbench's <code>count-rss</code> does the same job by encoding the shortcut condition as a propositional formula and calling a model counter.</p>
+  <p class="citation">count-rss: Bortolotti et al. (2024), arXiv:2406.10368. Exact and approximate #SAT counting over the set of label optimal concept mappings.</p>
+</section>
+
+<!-- ══════════════════ SECTION 3 | LEARN TO INSPECT A MODEL ══════════════════ -->
+
+<!-- 11 -->
+<section>
+  <div class="stepper">
+    <span class="step done">1 · Puzzle</span><span class="step done">2 · Structure</span><span class="step here">3 · Inspect</span>
+    <span class="step">4 · Constrain</span><span class="step">5 · Transfer</span><span class="step">6 · Measure</span>
+    <span class="step">7 · Position</span><span class="step">8 · Challenge</span>
+  </div>
+  <h2 style="margin-top:1.1em;">MNIST-Addition</h2>
+  <div style="display:flex; gap:1.1em; align-items:center; margin-top:0.2em;">
+    <svg viewBox="0 0 470 110" style="flex:0 0 44%; max-width:400px;">
+      <defs><marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+        <path d="M0,0 L7,3 L0,6 z" fill="#7a8291"/></marker></defs>
+      <g stroke="#e8eaed" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="8"  y="12" width="88" height="88" rx="6" fill="#0a0c10" stroke="#39404b" stroke-width="2"/>
+        <path d="M30,36 L74,36 L46,84"/>
+        <rect x="132" y="12" width="88" height="88" rx="6" fill="#0a0c10" stroke="#39404b" stroke-width="2"/>
+        <path d="M150,38 C160,24 188,26 186,42 C185,53 172,55 164,55 C174,55 190,58 188,72 C186,86 158,86 148,76"/>
+      </g>
+      <text x="114" y="68" fill="#7a8291" font-size="32" text-anchor="middle" font-family="Helvetica">+</text>
+      <path d="M232,56 L264,56" stroke="#7a8291" stroke-width="2" marker-end="url(#ar)"/>
+      <rect x="270" y="30" width="86" height="52" rx="8" fill="#1b1f27" stroke="#7a8291" stroke-width="2"/>
+      <text x="313" y="53" fill="#e8eaed" font-size="15" text-anchor="middle" font-family="Helvetica">add</text>
+      <text x="313" y="71" fill="#7a8291" font-size="11" text-anchor="middle" font-family="Helvetica">fixed rule</text>
+      <path d="M360,56 L396,56" stroke="#7a8291" stroke-width="2" marker-end="url(#ar)"/>
+      <text x="428" y="64" fill="#4fd1c5" font-size="30" text-anchor="middle" font-family="Helvetica" font-weight="bold">10</text>
+      <text x="52"  y="9" fill="#ff6b6b" font-size="11" text-anchor="middle" font-family="Helvetica">concept: latent</text>
+      <text x="176" y="9" fill="#ff6b6b" font-size="11" text-anchor="middle" font-family="Helvetica">concept: latent</text>
+      <text x="428" y="88" fill="#4fd1c5" font-size="11" text-anchor="middle" font-family="Helvetica">the only label</text>
+    </svg>
+    <p style="flex:1; font-size:0.74em;">Two handwritten digit images go in. The encoder predicts a digit for each. A fixed rule adds the two predictions. <b>Only the sum carries a label</b>, so the individual digits are never supervised, exactly as <code>G1, G2, G3</code> were never supervised in the parity example.</p>
+  </div>
+  <div class="card" style="margin-top:0.5em; font-size:0.63em;">
+    <h3 class="accent">Dataset card</h3>
+    <p class="dim" style="margin-bottom:0.35em;">A dataset card states what a dataset is and what it can be asked, so that a result is read against the design that produced it rather than against a general impression. Each claim later in this section rests on a specific line here.</p>
+    <p><b>Source.</b> MNIST (LeCun et al., 1998) via <code>torchvision.datasets</code>. Preprocessing is scaling to tensors, and that alone.</p>
+    <p><b>Construction.</b> All 100 ordered digit pairs, 20 replicas each, for 2000 examples. Concept support is exhaustive and balanced by design, matching the parity example one level up in complexity.</p>
+    <p><b>Answers.</b> Whether a shortcut is caused by the <em>architecture</em> or by the <em>rule</em>, because data support is held fixed and fully known across every run.</p>
+    <p><b>Leaves open.</b> Anything about selection bias or missing combinations, which requires restricted support. The driving section uses a separate generator for that.</p>
+  </div>
+</section>
+
+<!-- 12 -->
+<section>
+  <h2>The variable under test: how the encoder sees the pair</h2>
+  <p class="dim" style="font-size:0.72em; margin-top:0;">This is the fourth factor, the concept extractor architecture. Task, data and rule are held identical across both conditions, so any difference in concept quality is attributable to this choice alone.</p>
+  <svg viewBox="0 0 900 200" style="width:100%; max-width:840px; display:block; margin:0.2em auto;">
+    <text x="215" y="18" fill="#4fd1c5" font-size="18" text-anchor="middle" font-family="Helvetica" font-weight="bold">Disentangled</text>
+    <rect x="60"  y="34" width="60" height="46" rx="6" fill="#1b1f27" stroke="#7a8291" stroke-width="2"/>
+    <text x="90"  y="63" fill="#e8eaed" font-size="20" text-anchor="middle">7</text>
+    <rect x="310" y="34" width="60" height="46" rx="6" fill="#1b1f27" stroke="#7a8291" stroke-width="2"/>
+    <text x="340" y="63" fill="#e8eaed" font-size="20" text-anchor="middle">3</text>
+    <rect x="150" y="34" width="130" height="46" rx="6" fill="#1b1f27" stroke="#4fd1c5" stroke-width="2"/>
+    <text x="215" y="56" fill="#4fd1c5" font-size="13" text-anchor="middle" font-family="Helvetica">same CNN</text>
+    <text x="215" y="72" fill="#7a8291" font-size="11" text-anchor="middle" font-family="Helvetica">applied twice</text>
+    <path d="M120,57 L148,57" stroke="#7a8291" stroke-width="2"/>
+    <path d="M308,57 L282,57" stroke="#7a8291" stroke-width="2"/>
+    <text x="215" y="106" fill="#4fd1c5" font-size="12" text-anchor="middle" font-family="Helvetica">p(digit | left image)</text>
+    <text x="215" y="124" fill="#7a8291" font-size="12" text-anchor="middle" font-family="Helvetica">Each image is scored on its own, so the</text>
+    <text x="215" y="140" fill="#7a8291" font-size="12" text-anchor="middle" font-family="Helvetica">answer for one image is a function</text>
+    <text x="215" y="156" fill="#7a8291" font-size="12" text-anchor="middle" font-family="Helvetica">of that image alone.</text>
+
+    <line x1="450" y1="12" x2="450" y2="188" stroke="#2a2f38" stroke-width="2"/>
+
+    <text x="685" y="18" fill="#ff6b6b" font-size="18" text-anchor="middle" font-family="Helvetica" font-weight="bold">Entangled</text>
+    <rect x="560" y="34" width="60" height="46" rx="6" fill="#1b1f27" stroke="#7a8291" stroke-width="2"/>
+    <text x="590" y="63" fill="#e8eaed" font-size="20" text-anchor="middle">7</text>
+    <rect x="630" y="34" width="60" height="46" rx="6" fill="#1b1f27" stroke="#7a8291" stroke-width="2"/>
+    <text x="660" y="63" fill="#e8eaed" font-size="20" text-anchor="middle">3</text>
+    <path d="M600,84 L668,106" stroke="#7a8291" stroke-width="2"/>
+    <path d="M672,84 L680,106" stroke="#7a8291" stroke-width="2"/>
+    <rect x="600" y="108" width="170" height="40" rx="6" fill="#1b1f27" stroke="#ff6b6b" stroke-width="2"/>
+    <text x="685" y="126" fill="#ff6b6b" font-size="13" text-anchor="middle" font-family="Helvetica">one shared trunk</text>
+    <text x="685" y="141" fill="#7a8291" font-size="11" text-anchor="middle" font-family="Helvetica">sees both, then splits</text>
+    <text x="685" y="170" fill="#ff6b6b" font-size="12" text-anchor="middle" font-family="Helvetica">p(digit | both images)</text>
+    <text x="685" y="188" fill="#7a8291" font-size="12" text-anchor="middle" font-family="Helvetica">Each answer may depend on the other image.</text>
+  </svg>
+  <p class="fragment" style="text-align:center; font-size:0.8em; margin-top:0.2em;">
+    The entangled trunk can pick a <em>pair</em> of numbers that sums correctly while either number alone is wrong.<br/>
+    <span class="accent">The disentangled encoder has to commit to a digit it can defend from one image.</span>
+  </p>
+</section>
+
+<!-- 13 -->
+<section class="center">
+  <h2>Predict before you run</h2>
+  <p class="lead" style="margin-top:0.8em;">Which encoder do you expect to learn<br/><em>better digit concepts</em>, and why?</p>
+  <p class="fragment note" style="margin-top:1.2em;">Commit to an answer. The next slide is the measurement.</p>
+</section>
+
+<!-- 14 -->
+<section class="center">
+  <div class="causes">
+    <span class="cause done">Prior knowledge</span><span class="cause">Data support</span><span class="cause">Objective</span><span class="cause active">Architecture</span>
+  </div>
+  <div class="cell">metrics = <span class="fn">train_addition_model</span>(EntangledEncoder, dataset, epochs=<span class="st">12</span>)</div>
+  <p class="running fragment">training · 3 seeds</p>
+  <p class="runlabel fragment">recorded output · entangled</p>
+  <div class="out fragment"><span class="k">task_accuracy</span>   0.978
+<span class="k">concept_f1</span>      0.542</div>
+  <div class="metrics fragment" style="margin-top:0.5em;">
+    <div class="metric good"><div class="label">Task<br/>accuracy</div><div class="value">97.8%</div></div>
+    <div class="metric bad"><div class="label">Concept<br/>F1</div><div class="value">54.2%</div></div>
+  </div>
+  <p class="lead fragment" style="margin-top:0.35em; font-size:0.95em;">How can the answer be about 98% correct<br/>if the concepts are only about 54% aligned?</p>
+  <div class="cols fragment" style="margin-top:0.5em;">
+    <div class="card" style="font-size:0.5em; border-left:3px solid var(--accent);">
+      <h3 class="accent">Task accuracy</h3>
+      <p>The fraction of examples whose <b>final label</b> the model got right: the predicted sum equals the true sum.</p>
+      <p class="dim">Supervised during training. This is the number a standard evaluation reports.</p>
+    </div>
+    <div class="card" style="font-size:0.5em; border-left:3px solid var(--warn);">
+      <h3 class="warn">Concept F1</h3>
+      <p>The agreement between predicted and true <b>digit identities</b>, computed per digit class and then averaged, so a rare class counts as much as a common one.</p>
+      <p class="dim">Scored against ground truth annotations the model was never trained on. Available here only because the data is synthetic and the true digits are known.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 15 -->
+<section class="center">
+  <h2>Reading the concept confusion matrix</h2>
+  <div style="display:flex; gap:1.1em; align-items:flex-start;">
+    <div style="flex:0 0 56%;">
+      <img class="confusion-img" style="max-height:400px;" src="assets/entangled_confusion.png" alt="Row normalised confusion matrix for the entangled encoder: diagonal around 0.54, all off diagonal cells around 0.05" />
+    </div>
+    <div style="flex:1; text-align:left; font-size:0.58em;">
+      <p style="margin:0 0 0.4em 0;"><b>How to read it.</b> One row per true digit. Each row sums to 1 and shows how that digit's images were distributed across the encoder's answers.</p>
+      <p style="margin:0.35em 0;"><b class="accent">1. The diagonal.</b> About 0.54 everywhere. Each true digit is recovered a little over half the time.</p>
+      <p style="margin:0.35em 0;"><b class="accent">2. The off diagonal.</b> About 0.05 in every cell. The remaining 0.46 is split nine ways, which is close to uniform.</p>
+      <p style="margin:0.35em 0;"><b class="accent">3. The shape.</b> Uniform spread means the errors are structureless: a true 3 is called each of the nine other digits about equally often. A model that confused 3 with 8 would put a hot cell there instead. This encoder is choosing whatever value makes the pair land on the right sum.</p>
+      <p class="dim" style="margin:0.45em 0 0 0;">Two other shapes worth recognising: a bright diagonal, meaning grounded concepts; and a bright vertical column, meaning many true concepts collapsed onto one predicted concept.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 16 -->
+<section class="center">
+  <h2>Ten digit concepts collapse into five</h2>
+  <div style="display:flex; gap:1.2em; align-items:flex-start;">
+    <div style="flex:0 0 44%;">
+      <img class="paper-img" style="max-height:330px;" src="assets/rsbench_dpl_confusion.png" alt="Concept confusion matrix for a DeepProbLog model on MNAdd-EvenOdd: every row has one confident dark cell, but those cells sit in only five distinct columns" />
+      <p class="src">Bortolotti, Marconato et al. (2024), rsbench, Table 3 left: DeepProbLog concept confusion on MNAdd-EvenOdd. Reproduced under CC BY-SA 4.0.</p>
+    </div>
+    <div style="flex:1; text-align:left; font-size:0.6em;">
+      <p style="margin:0 0 0.4em 0;"><b>Axes.</b> True digit down the rows, predicted digit across the columns. The task is MNIST addition where training pairs are both even or both odd, which is how rsbench makes sure a shortcut exists.</p>
+      <p style="margin:0.35em 0;"><b class="warn">Every row is dark, and none is on the diagonal.</b> The model is confident, and wrong every time.</p>
+      <p style="margin:0.35em 0;"><b class="warn">Five columns take all ten rows.</b> 1, 3, 5 and 8 go to 3; 2 and 7 go to 7; 4 and 9 go to 9; 0 goes to 5; 6 goes to 1. All five are odd digits.</p>
+      <p style="margin:0.35em 0;"><b class="accent">rsbench calls this concept collapse</b>, <code>Cls(C) = 1 − p/m</code>, with <code>m</code> the concept count and <code>p</code> the columns holding any mass.</p>
+      <p style="margin:0.5em 0 0 0;"><b class="accent">Interpretation.</b> The encoder learned five buckets that fit the addition rule instead of ten digit identities.</p>
+      <p style="margin:0.3em 0;"><b class="warn">Impact.</b> It scores label F1 = 0.94 ± 0.04, so the outcome metric gives no reason to open this matrix.</p>
+      <p class="dim" style="margin:0.45em 0 0 0;">Marconato et al. (2023) report the same collapse on BDD-OIA, the real dashcam benchmark.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 17 -->
+<section class="center">
+  <h2>The comparison and the ceiling check</h2>
+  <table style="font-size:0.7em; margin-bottom:0.4em;">
+    <tr><th>Encoder</th><th>Task accuracy</th><th>Concept F1</th><th>Reading</th></tr>
+    <tr><td class="accent">Disentangled</td><td>0.997 to 0.999</td><td class="accent">0.998</td><td class="dim">concepts grounded</td></tr>
+    <tr class="fragment"><td class="warn">Entangled</td><td>0.97 to 0.98</td><td class="warn">0.54</td><td class="dim">shortcut</td></tr>
+  </table>
+  <p class="fragment note dim">Three seeds per architecture, from this notebook. Shortcuts are alternative optima, so different seeds can land on different solutions.</p>
+  <p class="fragment" style="margin-top:0.5em; font-size:0.8em;"><b>Is the entangled model simply undertrained?</b> That is the competing explanation, and it has to be ruled out rather than assumed away.</p>
+  <p class="fragment accent" style="font-size:0.8em;">More epochs and more seeds leave entangled task accuracy at about 98%, which is where it settles. Condition 1 of the definition therefore holds, and the 0.54 concept F1 is a shortcut rather than an optimisation failure.</p>
+  <p class="citation">The direction reproduces the disentanglement finding in Table 2 of Marconato et al. (2023), whose caption reads: "Q1: Disentanglement (dis) can be very powerful to lower the frequency of RSs on XOR and MNIST-Addition data sets (the lower the better). Results are averaged over 30 optimal runs." That table reports shortcut frequency over 30 runs; the accuracy and F1 figures above are this notebook's own three seed measurements, not the paper's numbers.</p>
+</section>
+
+<!-- ══════════════════ SECTION 4 | HOW SHORTCUTS ARE CONSTRAINED ══════════════════ -->
+
+<!-- 18 -->
+<section>
+  <div class="stepper">
+    <span class="step done">1 · Puzzle</span><span class="step done">2 · Structure</span><span class="step done">3 · Inspect</span>
+    <span class="step here">4 · Constrain</span><span class="step">5 · Transfer</span><span class="step">6 · Measure</span>
+    <span class="step">7 · Position</span><span class="step">8 · Challenge</span>
+  </div>
+  <div class="causes" style="margin-top:1.7em;">
+    <span class="cause done">Prior knowledge</span><span class="cause">Data support</span><span class="cause active">Objective</span><span class="cause done">Architecture</span>
+  </div>
+  <h2>A second rule over the same concepts narrows what they can mean</h2>
+  <p style="font-size:0.78em;">Take one training example: two images, whose true digits are 3 and 6. Under addition alone the model is told the answer is 9. Many digit pairs satisfy that.</p>
+  <div class="cols" style="margin-top:0.3em;">
+    <div class="card">
+      <h3 class="warn">Supervised by the sum only</h3>
+      <p style="font-family:Consolas,monospace; font-size:1.05em; line-height:1.7;">d1 + d2 = 9<br/><span class="warn">0+9 &nbsp; 1+8 &nbsp; 2+7 &nbsp; 3+6 &nbsp; 4+5</span></p>
+      <p>Ten ordered pairs fit the observation. The loss has nothing to say about which one the encoder should pick, so an encoder that reads 3 as 4 and 6 as 5 is scored exactly as well.</p>
+    </div>
+    <div class="card fragment">
+      <h3 class="accent">Supervised by the sum and the product</h3>
+      <p style="font-family:Consolas,monospace; font-size:1.05em; line-height:1.7;">d1 + d2 = 9<br/>d1 × d2 = 18<br/><span class="accent">3+6</span></p>
+      <p>The two digits are the roots of <code>x² − 9x + 18 = 0</code>. A sum and a product determine an unordered pair uniquely, so exactly one assignment survives.</p>
+    </div>
+  </div>
+  <p class="fragment accent" style="text-align:center; font-size:0.82em; margin-top:0.6em;">Adding a relationship over the same concepts removes alternatives that satisfied the first relationship. This is the learning objective factor.</p>
+</section>
+
+<!-- 19 -->
+<section class="center">
+  <span class="badge cited">result cited from the paper, not re-derived here</span>
+  <h2>Concept F1 under one rule and under two rules</h2>
+  <p class="dim" style="font-size:0.78em;">MNIST-AddMul under restricted data support: the same digit images, supervised first by their sum alone, then by sum and product jointly.</p>
+  <div class="metrics" style="margin-top:0.7em;">
+    <div class="metric bad"><div class="label">Concept F1<br/>addition only</div><div class="value">0%</div></div>
+    <div class="metric good fragment"><div class="label">Concept F1<br/>add + multiply</div><div class="value">99.8%</div></div>
+  </div>
+  <p class="fragment note" style="margin-top:0.9em;">Cited rather than reproduced. Local attempts at addition alone never reached ceiling task accuracy, so a local number would have failed condition 1 and shown an optimisation failure instead of a shortcut.</p>
+  <p class="citation">Marconato et al. (2023), MNIST-AddMul, restricted data support.</p>
+</section>
+
+<!-- ══════════════════ SECTION 5 | REAL-WORLD TRANSFER ══════════════════ -->
+
+<!-- 20 -->
+<section>
+  <div class="stepper">
+    <span class="step done">1 · Puzzle</span><span class="step done">2 · Structure</span><span class="step done">3 · Inspect</span>
+    <span class="step done">4 · Constrain</span><span class="step here">5 · Transfer</span><span class="step">6 · Measure</span>
+    <span class="step">7 · Position</span><span class="step">8 · Challenge</span>
+  </div>
+  <h2 style="margin-top:1.1em;">A driving scenario, and why it is the field's standard example</h2>
+  <svg viewBox="0 0 980 205" style="width:100%; max-width:980px; display:block; margin:0.4em auto;" role="img"
+       aria-label="Three driving scenes. In task one, a red light scene and a green light with pedestrian scene are both labelled stop correctly, because the encoder calls the pedestrian a red light. In task two, where an emergency vehicle may ignore a red light, the same mislabelled pedestrian produces an incorrect go.">
+    <text x="282" y="20" fill="#4fd1c5" font-size="13" text-anchor="middle" font-family="Helvetica">Task 1 · K1 = (pedestrian ∨ red ⇒ stop)</text>
+    <text x="729" y="20" fill="#ff6b6b" font-size="13" text-anchor="middle" font-family="Helvetica">Task 2 · K2 = (emergency ∧ ¬pedestrian ⇒ go) ∧ K1</text>
+    <line x1="578" y1="16" x2="578" y2="196" stroke="#2a2f38" stroke-width="2" stroke-dasharray="4 5"/>
+
+    <!-- Scene A: red light, no pedestrian -->
+    <rect x="26" y="42" width="246" height="118" rx="8" fill="#1b1f27" stroke="#39404b" stroke-width="2"/>
+    <rect x="29" y="45" width="240" height="66" rx="5" fill="#2a3548"/>
+    <rect x="29" y="107" width="240" height="50" rx="5" fill="#3f444c"/>
+    <rect x="120" y="138" width="58" height="5" rx="2" fill="#e8eaed" opacity="0.6"/>
+    <rect x="226" y="96" width="4" height="18" fill="#7a8291"/>
+    <rect x="218" y="54" width="20" height="42" rx="5" fill="#12151b" stroke="#7a8291" stroke-width="2"/>
+    <circle cx="228" cy="64" r="4.5" fill="#ff6b6b"/><circle cx="228" cy="75" r="4.5" fill="#3a3a2e"/><circle cx="228" cy="86" r="4.5" fill="#2c3a30"/>
+    <rect x="164" y="56" width="46" height="18" rx="9" fill="#12151b" stroke="#4fd1c5" stroke-width="2"/>
+    <text x="187" y="69" fill="#4fd1c5" font-size="12" text-anchor="middle" font-family="Helvetica">red</text>
+    <text x="149" y="180" fill="#e8eaed" font-size="14" text-anchor="middle" font-family="Helvetica">y = stop · ŷ = stop <tspan fill="#3ddc84">✓</tspan></text>
+
+    <!-- Scene B: green light plus pedestrian, read as a red light -->
+    <rect x="292" y="42" width="246" height="118" rx="8" fill="#1b1f27" stroke="#39404b" stroke-width="2"/>
+    <rect x="295" y="45" width="240" height="66" rx="5" fill="#2a3548"/>
+    <rect x="295" y="107" width="240" height="50" rx="5" fill="#3f444c"/>
+    <rect x="386" y="138" width="58" height="5" rx="2" fill="#e8eaed" opacity="0.6"/>
+    <rect x="492" y="96" width="4" height="18" fill="#7a8291"/>
+    <rect x="484" y="54" width="20" height="42" rx="5" fill="#12151b" stroke="#7a8291" stroke-width="2"/>
+    <circle cx="494" cy="64" r="4.5" fill="#4a2f2f"/><circle cx="494" cy="75" r="4.5" fill="#3a3a2e"/><circle cx="494" cy="86" r="4.5" fill="#3ddc84"/>
+    <rect x="424" y="56" width="54" height="18" rx="9" fill="#12151b" stroke="#4fd1c5" stroke-width="2"/>
+    <text x="451" y="69" fill="#4fd1c5" font-size="12" text-anchor="middle" font-family="Helvetica">green</text>
+    <g fill="#e8eaed">
+      <circle cx="362" cy="92" r="6"/><rect x="357" y="100" width="10" height="20" rx="4"/>
+      <rect x="357" y="119" width="4" height="14" rx="2"/><rect x="363" y="119" width="4" height="14" rx="2"/>
+    </g>
+    <rect x="339" y="58" width="46" height="18" rx="9" fill="#12151b" stroke="#ff6b6b" stroke-width="2"/>
+    <text x="362" y="71" fill="#ff6b6b" font-size="12" text-anchor="middle" font-family="Helvetica">red</text>
+    <text x="415" y="180" fill="#e8eaed" font-size="14" text-anchor="middle" font-family="Helvetica">y = stop · ŷ = stop <tspan fill="#3ddc84">✓</tspan></text>
+
+    <!-- Scene C: emergency vehicle plus the same mislabelled pedestrian -->
+    <rect x="606" y="42" width="246" height="118" rx="8" fill="#1b1f27" stroke="#39404b" stroke-width="2"/>
+    <rect x="609" y="45" width="240" height="66" rx="5" fill="#2a3548"/>
+    <rect x="609" y="107" width="240" height="50" rx="5" fill="#3f444c"/>
+    <rect x="700" y="138" width="58" height="5" rx="2" fill="#e8eaed" opacity="0.6"/>
+    <rect x="636" y="96" width="70" height="26" rx="6" fill="#dfe3e8"/>
+    <rect x="662" y="86" width="18" height="9" rx="3" fill="#ff6b6b"/>
+    <rect x="655" y="106" width="18" height="5" fill="#ff6b6b"/><rect x="661.5" y="99.5" width="5" height="18" fill="#ff6b6b"/>
+    <circle cx="652" cy="123" r="7" fill="#12151b"/><circle cx="692" cy="123" r="7" fill="#12151b"/>
+    <rect x="622" y="58" width="88" height="18" rx="9" fill="#12151b" stroke="#4fd1c5" stroke-width="2"/>
+    <text x="666" y="71" fill="#4fd1c5" font-size="12" text-anchor="middle" font-family="Helvetica">emergency</text>
+    <g fill="#e8eaed">
+      <circle cx="786" cy="92" r="6"/><rect x="781" y="100" width="10" height="20" rx="4"/>
+      <rect x="781" y="119" width="4" height="14" rx="2"/><rect x="787" y="119" width="4" height="14" rx="2"/>
+    </g>
+    <rect x="763" y="58" width="46" height="18" rx="9" fill="#12151b" stroke="#ff6b6b" stroke-width="2"/>
+    <text x="786" y="71" fill="#ff6b6b" font-size="12" text-anchor="middle" font-family="Helvetica">red</text>
+    <text x="729" y="180" fill="#e8eaed" font-size="14" text-anchor="middle" font-family="Helvetica">y = stop · ŷ = go <tspan fill="#ff6b6b">✗</tspan></text>
+  </svg>
+  <p class="src">Tags show what the <em>encoder</em> calls each object, and the pink tag is the shortcut: pedestrians read as red lights. The two task construction follows the argument in Marconato et al. (2023), Fig. 1.</p>
+  <p class="fragment" style="font-size:0.72em; margin-top:0.4em;">Under <code>K1 = (pedestrian ∨ red ⇒ stop)</code> the shortcut is invisible, because both concepts imply the same action. It becomes visible when the concepts are reused under <code>K2</code>, where an emergency vehicle may ignore a red light but never a pedestrian.</p>
+  <p class="fragment accent" style="font-size:0.72em;">The next slides rebuild this on synthetic data, where the confound is imposed by hand and therefore known exactly rather than inferred.</p>
+  <p class="citation">This scenario recurs across the literature: introduced as Fig. 1 of Marconato et al. (2023), arXiv:2305.19951; instantiated on real dashcam data as BDD-OIA (Xu et al., 2020, <em>CVPR</em>); evaluated by BEARS (Marconato et al., 2024, <em>UAI</em>, arXiv:2402.12240); shipped as a task in rsbench (Bortolotti et al., 2024, <em>NeurIPS Datasets &amp; Benchmarks</em>, arXiv:2406.10368); and used again by Andolfi &amp; Giunchiglia (2025), arXiv:2510.25497.</p>
+</section>
+
+<!-- 21 -->
+<section class="center">
+  <div class="causes">
+    <span class="cause done">Prior knowledge</span><span class="cause active">Data support</span><span class="cause done">Objective</span><span class="cause done">Architecture</span>
+  </div>
+  <h2>A confound in the training set</h2>
+  <p style="font-size:0.85em;">Two concepts, one <code>OR</code> rule, and only the STOP decision is labelled. In every training scene a red light appears with a pedestrian and a pedestrian with a red light, so the two concepts are perfectly correlated.</p>
+  <div class="cell fragment">confounded_train = <span class="fn">make_confounded_driving_data</span>(num_examples=<span class="st">500</span>)</div>
+  <p class="runlabel fragment">recorded output · no concept supervision</p>
+  <div class="out fragment"><span class="k">in-distribution:</span> task_accuracy=<span class="good">0.988</span>  pedestrian_f1=<span class="good">0.989</span>  light_f1=<span class="bad">0.000</span></div>
+  <p class="fragment" style="font-size:0.68em; margin-top:0.4em;">The two sensors carry different amounts of noise: the pedestrian channel is generated at noise 0.3 and the light channel at 1.2, so the light channel carries four times the noise. Because the concepts always agree in training, reading the pedestrian sensor alone already produces the right STOP decision on every scene. Once the loss is near zero, the <code>OR</code> gate passes almost no error signal back to the light encoder, whose weights stay close to their initial random values. That is why <code>light_f1</code> is exactly 0.000 while task accuracy sits at 0.988, the ceiling the pedestrian noise permits.</p>
+  <p class="glossary fragment"><b>Gradient descent</b> is the iterative optimisation algorithm that trains the encoders: it finds a minimum of the loss by repeatedly stepping in the direction opposite to the gradient. Each step is shared out across the parameters in proportion to how much each one affects the loss, which is exactly the quantity the <code>OR</code> gate drives to near zero for the light encoder.</p>
+</section>
+
+<!-- 22 -->
+<section class="center">
+  <h2>What the shift test is, drawn out</h2>
+  <p class="dim" style="font-size:0.72em;">Each cell is one combination of the two concepts. The label under <code>pedestrian ∨ red ⇒ stop</code> is written inside.</p>
+  <div style="margin-top:0.4em;">
+    <div class="grid2">
+      <div class="cap" style="margin-bottom:0.3em;">Training support</div>
+      <table>
+        <tr><td></td><th>red light</th><th>green light</th></tr>
+        <tr><th>pedestrian</th><td class="cellbox seen">STOP<br/><span class="dim" style="font-size:0.75em;">seen often</span></td><td class="cellbox empty">STOP<br/><span style="font-size:0.75em;">never seen</span></td></tr>
+        <tr><th>none</th><td class="cellbox empty">STOP<br/><span style="font-size:0.75em;">never seen</span></td><td class="cellbox seen">GO<br/><span class="dim" style="font-size:0.75em;">seen often</span></td></tr>
+      </table>
+    </div>
+    <div class="grid2">
+      <div class="cap" style="margin-bottom:0.3em;">Decorrelated test set</div>
+      <table>
+        <tr><td></td><th>red light</th><th>green light</th></tr>
+        <tr><th>pedestrian</th><td class="cellbox empty">STOP</td><td class="cellbox unseen">STOP<br/><span class="accent" style="font-size:0.75em;">predicted STOP ✓</span></td></tr>
+        <tr><th>none</th><td class="cellbox unseen">STOP<br/><span class="warn" style="font-size:0.75em;">predicted GO ✗</span></td><td class="cellbox empty">GO</td></tr>
+      </table>
+    </div>
+  </div>
+  <p class="fragment" style="font-size:0.78em; margin-top:0.5em;">The test set holds the two combinations the confound excluded, so the concepts are forced to disagree. An encoder reading the pedestrian sensor alone handles the top right cell correctly and misses the bottom left one, which puts task accuracy at about one half.</p>
+  <p class="runlabel fragment" style="margin-top:0.4em;">recorded output · decorrelated test set</p>
+  <div class="out fragment"><span class="k">decorrelated OOD:</span> task_accuracy=<span class="bad">0.535</span>  pedestrian_f1=<span class="good">0.986</span>  light_f1=<span class="bad">0.000</span></div>
+</section>
+
+<!-- 23 -->
+<section class="center">
+  <h2>Concept supervision: the measured trade off</h2>
+  <p class="dim" style="font-size:0.66em;">Supervising the concepts directly adds a loss term that bypasses the <code>OR</code> gate, which is how the starved encoder starts receiving gradient. Sweeping the weight on that term:</p>
+  <table style="font-size:0.6em; margin-top:0.4em;"><tr><th>supervision weight</th><th>light F1</th><th>OOD task acc.</th><th>in-dist. task acc.</th></tr>
+    <tr><td>0.0</td><td class="warn">0.000</td><td class="warn">0.535</td><td class="accent">0.988</td></tr>
+    <tr class="fragment"><td>0.2</td><td>0.373</td><td>0.680</td><td class="accent">0.988</td></tr>
+    <tr class="fragment"><td>0.5</td><td>0.600</td><td>0.770</td><td>0.952</td></tr>
+    <tr class="fragment"><td>1.0</td><td class="accent">0.674</td><td class="accent">0.855</td><td class="warn">0.920</td></tr>
+  </table>
+  <p class="fragment lead" style="margin-top:0.45em; font-size:0.85em;">OOD accuracy rises <span class="accent">0.535 to 0.855</span>. In-distribution accuracy falls <span class="warn">0.988 to 0.920</span>.</p>
+  <div class="cols fragment" style="margin-top:0.4em;">
+    <div class="card" style="font-size:0.5em;"><h3 class="accent">Interpretation</h3>
+      <p>Light F1 moves 0.000 to 0.674, so the starved encoder does start learning the concept once it is supervised directly.</p>
+      <p>Between weights 0.0 and 0.2 the gain is free: OOD accuracy rises 0.145 while in-distribution accuracy stays at 0.988. The cost only appears past 0.2, where the concept loss begins competing with the task loss for the same capacity.</p>
+    </div>
+    <div class="card" style="font-size:0.5em;"><h3 class="warn">Impact</h3>
+      <p>Buying 0.320 of OOD accuracy costs 0.068 of in-distribution accuracy. Whether that is worth it depends on how often deployment breaks the training confound, which is a fact about the world rather than about the model.</p>
+      <p>A team reporting task accuracy alone sees only the 0.068 drop and reads concept supervision as a regression. The concept column is what makes the exchange visible.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 24 -->
+<section>
+  <h2>The same failure, on a real driving corpus</h2>
+  <div class="cols">
+    <div class="card">
+      <h3 class="accent">BDD-OIA</h3>
+      <p>Real dashcam frames annotated with <b>21 binary concepts</b> for obstacles on the road. The task is multi-label: which of forward, stop, left, right are safe.</p>
+      <p>Prior knowledge includes that moving forward is unsafe when pedestrians are present.</p>
+    </div>
+    <div class="card">
+      <h3 class="warn">The documented shortcut</h3>
+      <p>rsbench reports that models on this task commonly <em>confuse pedestrians with red lights</em>, because both imply the correct stop action on every training example.</p>
+      <p class="accent" style="font-size:0.95em;">This is the confound of the previous slides, arising on its own in real data rather than being imposed.</p>
+    </div>
+    <div class="card">
+      <h3 class="accent">What is available to run</h3>
+      <p>rsbench ships BDD-OIA together with a rendered synthetic counterpart, SDD-OIA, so data support can be varied deliberately while the visual domain is held similar.</p>
+      <p>It also ships the concept quality metrics and <code>count-rss</code>.</p>
+    </div>
+  </div>
+  <p class="fragment" style="font-size:0.8em; margin-top:0.6em;">The paradigm generalises past driving. Concept bottleneck models, DeepProbLog and Logic Tensor Networks all share the structure that creates the problem: a supervised label, a fixed rule, and latent concepts in between.</p>
+  <p class="citation">Bortolotti, Marconato, Carraro, Morettin et al. (2024), "A Neuro-Symbolic Benchmark Suite for Concept Quality and Reasoning Shortcuts," NeurIPS 2024 Datasets &amp; Benchmarks Track, arXiv:2406.10368. BDD-OIA: Xu et al. (2020), CVPR.</p>
+</section>
+
+<!-- ══════════════════ SECTION 6 | MEASUREMENT SCIENCE ══════════════════ -->
+
+<!-- 25 -->
+<section>
+  <div class="stepper">
+    <span class="step done">1 · Puzzle</span><span class="step done">2 · Structure</span><span class="step done">3 · Inspect</span>
+    <span class="step done">4 · Constrain</span><span class="step done">5 · Transfer</span><span class="step here">6 · Measure</span>
+    <span class="step">7 · Position</span><span class="step">8 · Challenge</span>
+  </div>
+  <h2 style="margin-top:1.1em;">Task accuracy and concept validity answer different questions</h2>
+  <div class="cols" style="margin-top:0.5em;">
+    <div class="card">
+      <h3 class="accent">Predictive performance</h3>
+      <p>Does the system produce the right observable result?</p>
+      <p class="dim">Measured by task accuracy. Cheap, standard, and the number usually reported.</p>
+    </div>
+    <div class="card">
+      <h3 class="warn">Construct validity</h3>
+      <p>Does it produce that result <em>for the intended reason</em>?</p>
+      <p class="dim">Measured by evidence about the latent concepts. It requires its own evidence, separate from the first column.</p>
+    </div>
+  </div>
+  <p class="lead fragment accent" style="text-align:center; margin-top:0.7em; font-size:1.05em;">A high task score is evidence for the first claim only.</p>
+  <div class="band fragment">
+    <b>Two practices follow.</b> Report the two scores side by side rather than as one composite, so the task result and the concept result stay separately visible. State assumptions and limitations explicitly, so "concept support was exhaustive" and "the shift test broke a known confound" are part of the record instead of being inferred by a reader.
+  </div>
+  <p class="citation">Messick (1995); Jacobs &amp; Wallach (2021), "Measurement and Fairness," <em>FAccT</em>.</p>
+</section>
+
+<!-- 26 -->
+<section>
+  <h2>What counts as evidence for a semantic claim</h2>
+  <div class="cols">
+    <div class="card">
+      <h3 class="accent">Supports a semantic claim</h3>
+      <p>Task accuracy shown to be <b>at its ceiling</b>, which separates a shortcut from an optimisation failure.</p>
+      <p>Concept F1 reported <b>per concept</b> rather than averaged.</p>
+      <p>Accuracy under a shift that <b>breaks a known confound</b>.</p>
+      <p>A <b>combination frequency table</b> for the training data.</p>
+      <p>Ablating the <b>architecture</b> and the <b>rule</b> with data held fixed.</p>
+      <p>A <b>count of label optimal concept mappings</b> admitted by the rule.</p>
+    </div>
+    <div class="card">
+      <h3 class="warn">Leaves the claim open</h3>
+      <p>High task accuracy on its own.</p>
+      <p><b>Constraint satisfaction</b>, when the rule is applied directly to the network's own beliefs. It then holds by construction, making it a plumbing check rather than a validation.</p>
+      <p><b>Averaged</b> concept F1. The driving example had one concept at 0.99 and one at 0.00, averaging to a respectable number.</p>
+      <p>A low concept F1 <em>on its own</em>, with the ceiling check skipped.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 27 -->
+<section>
+  <h2>Stage-dependent mechanisms and diagnostics</h2>
+  <div class="causes" style="font-size:0.42em; margin-top:0.5em;">
+    <span class="cause done">Prior knowledge</span><span class="cause done">Data support</span><span class="cause done">Objective</span><span class="cause done">Architecture</span>
+  </div>
+  <table style="font-size:0.6em; margin-top:0.5em;">
+    <tr><th>Factor</th><th>Where</th><th>Mechanism</th><th>Diagnostic</th><th>Result</th></tr>
+    <tr>
+      <td class="accent">Prior knowledge</td><td>3-way XOR</td>
+      <td class="dim" style="text-align:left;">Parity is invariant to inverting an even number of inputs, so three pairwise flips reproduce all eight labels.</td>
+      <td class="dim" style="text-align:left;">Enumerate the label optimal mappings of the rule.</td>
+      <td class="warn">4 optima</td>
+    </tr>
+    <tr class="fragment">
+      <td class="accent">Architecture</td><td>MNIST-Addition</td>
+      <td class="dim" style="text-align:left;">A shared trunk conditions each digit prediction on both images, so a wrong pair can still sum correctly.</td>
+      <td class="dim" style="text-align:left;">Swap encoder, hold data and rule fixed; check the ceiling; read the confusion matrix.</td>
+      <td class="warn">F1 0.54 vs 0.998</td>
+    </tr>
+    <tr class="fragment">
+      <td class="accent">Objective</td><td>Add + Multiply</td>
+      <td class="dim" style="text-align:left;">A sum admits many digit pairs; a sum together with a product determines the pair.</td>
+      <td class="dim" style="text-align:left;">Add a second relationship over the same concepts and re-measure.</td>
+      <td class="warn">F1 0% to 99.8%</td>
+    </tr>
+    <tr class="fragment">
+      <td class="accent">Data support</td><td>Driving</td>
+      <td class="dim" style="text-align:left;">Two perfectly correlated concepts under an OR gate; the lower noise sensor absorbs the gradient and the other stays at initialisation.</td>
+      <td class="dim" style="text-align:left;">Per concept F1 plus a decorrelated shift test.</td>
+      <td class="warn">OOD 0.988 to 0.535</td>
+    </tr>
+  </table>
+  <p class="fragment note" style="margin-top:0.6em;">Across these four rows, task accuracy stayed at or near its ceiling in every case while concept quality ranged from 0.998 down to 0.000. Task accuracy flagged none of them, and each row needed a different measurement to surface.</p>
+</section>
+
+<!-- 28 -->
+<section>
+  <h2>Complementary frameworks</h2>
+  <p class="dim" style="font-size:0.66em; margin-top:0;">Each takes a different position on what to do once you accept that the label alone underdetermines the concepts.</p>
+  <table style="font-size:0.5em; margin-top:0.3em;">
+    <tr><th>Work</th><th>Position</th><th>What it gives you</th></tr>
+    <tr>
+      <td class="accent" style="text-align:left;">Marconato et al. (2023)</td>
+      <td class="dim" style="text-align:left;">Shortcuts are unintended optima of the objective, governed by four factors.</td>
+      <td class="dim" style="text-align:left;">The diagnostic vocabulary used throughout this deck.</td>
+    </tr>
+    <tr class="fragment">
+      <td class="accent" style="text-align:left;">BEARS · Marconato et al. (2024)</td>
+      <td class="dim" style="text-align:left;">Calibrate rather than eliminate. Ensemble so the model stays uncertain about concepts a shortcut has touched.</td>
+      <td class="dim" style="text-align:left;">Concept level confidence a downstream user can distrust selectively.</td>
+    </tr>
+    <tr class="fragment">
+      <td class="accent" style="text-align:left;">van Krieken et al. (2025)</td>
+      <td class="dim" style="text-align:left;">The <b>independence assumption</b> fails. To speed up inference, most NeSy predictors score each concept bit separately, so their belief about a whole combination is only the product of the separate bits.</td>
+      <td class="dim" style="text-align:left;">A proof that a product of independent bits cannot put mass on two particular combinations and zero elsewhere. The model therefore has no way to say "either 3 and 6 or 4 and 5, and nothing between," and cannot be shortcut aware for most problems. Calibration has an architectural precondition.</td>
+    </tr>
+    <tr class="fragment">
+      <td class="accent" style="text-align:left;">Yang et al. (2024)</td>
+      <td class="dim" style="text-align:left;">Shortcut risk is the gap between true risk and surrogate risk.</td>
+      <td class="dim" style="text-align:left;">A bound in knowledge base complexity, sample size and hypothesis space, and a result that abductive learning lowers it via the distance function.</td>
+    </tr>
+    <tr class="fragment">
+      <td class="accent" style="text-align:left;">Takemura et al. (2026)</td>
+      <td class="dim" style="text-align:left;">Constraint satisfaction: when is the concept mapping uniquely determined?</td>
+      <td class="dim" style="text-align:left;">An ASP verification algorithm and a greedy repair method. Deciding shortcut freeness is coNP-complete.</td>
+    </tr>
+    <tr class="fragment">
+      <td class="accent" style="text-align:left;">Coston (2026)</td>
+      <td class="dim" style="text-align:left;">Falsification: test discriminant validity against a named impermissible proxy.</td>
+      <td class="dim" style="text-align:left;">A nonparametric hypothesis test that can fail, usable outside neurosymbolic settings.</td>
+    </tr>
+  </table>
+  <p class="fragment note" style="margin-top:0.4em; font-size:0.52em;">A caution from Takemura et al.: a <em>discrimination</em> property on the constraints rules out shortcuts that swap two concepts and leaves longer permutation cycles standing. Their Fig. 2 gives a task whose constraint graph is fully connected and which still admits two shortcuts through a three cycle. Connectivity is insufficient, and so is any single structural check.</p>
+</section>
+
+<!-- ══════════════════ SECTION 7 | POSITIONING ══════════════════ -->
+
+<!-- 29 -->
+<section>
+  <div class="stepper">
+    <span class="step done">1 · Puzzle</span><span class="step done">2 · Structure</span><span class="step done">3 · Inspect</span>
+    <span class="step done">4 · Constrain</span><span class="step done">5 · Transfer</span><span class="step done">6 · Measure</span>
+    <span class="step here">7 · Position</span><span class="step">8 · Challenge</span>
+  </div>
+  <h2 style="margin-top:1.1em;">How this compares with the two alternatives</h2>
+  <table style="font-size:0.65em; margin-top:0.4em;">
+    <tr><th>Approach</th><th>Strength</th><th>Weakness</th></tr>
+    <tr><td>End to end neural</td><td class="dim">strong perception, flexible representations</td><td class="dim">weak explicit semantics</td></tr>
+    <tr class="fragment"><td>Pure symbolic</td><td class="dim">transparent rules, auditable</td><td class="dim">grounding and perception are hard</td></tr>
+    <tr class="fragment"><td class="accent">Neurosymbolic</td><td class="dim">learned perception together with explicit reasoning</td><td class="warn">whether the learned symbols are grounded as intended</td></tr>
+  </table>
+  <p class="fragment" style="margin-top:0.7em; font-size:0.82em;">Neurosymbolic modelling itself is well established, with DeepProbLog and Logic Tensor Networks in use for several years. The open technical problem follows from the architecture's central promise: concepts are made explicit so that they can be reused, verified and explained, which is precisely why their semantics have to be checked rather than assumed.</p>
+  <p class="fragment accent" style="font-size:0.82em;">Reasoning shortcuts were formalised in 2023. The benchmark suite arrived in 2024, and the complexity results in 2026. The measurement practice is still being built.</p>
+</section>
+
+<!-- 30 -->
+<section>
+  <span class="badge">secondary</span>
+  <h2>An efficiency note</h2>
+  <p style="font-size:0.85em;">The default response to a model that is working poorly is to train a larger one.</p>
+  <table style="font-size:0.68em; margin-top:0.5em;">
+    <tr><th>Intervention</th><th>Cost profile</th></tr>
+    <tr><td>Change the encoder architecture</td><td class="dim">same budget; the MNIST section fixed the shortcut without adding capacity</td></tr>
+    <tr class="fragment"><td>Add a second relationship</td><td class="dim">same data, one additional supervision signal</td></tr>
+    <tr class="fragment"><td>Label a subset of concepts</td><td class="dim">annotation cost rather than compute</td></tr>
+    <tr class="fragment"><td>Analyse data support</td><td class="dim">read from the data, before training</td></tr>
+    <tr class="fragment"><td>Count the rule's optima</td><td class="dim">a model counter, before any training run</td></tr>
+  </table>
+  <p class="fragment accent" style="margin-top:0.6em; font-size:0.85em;">More validation does not have to mean more compute. Diagnosing which factor is operating tells you which intervention is even relevant.</p>
+</section>
+
+<!-- ══════════════════ SECTION 8 | LEARNER CHALLENGE ══════════════════ -->
+
+<!-- 31 -->
+<section class="center">
+  <div class="stepper">
+    <span class="step done">1 · Puzzle</span><span class="step done">2 · Structure</span><span class="step done">3 · Inspect</span>
+    <span class="step done">4 · Constrain</span><span class="step done">5 · Transfer</span><span class="step done">6 · Measure</span>
+    <span class="step done">7 · Position</span><span class="step here">8 · Challenge</span>
+  </div>
+  <p class="lead" style="margin-top:1.6em;">A model can learn the right rule<br/>over concepts with <span class="warn">unintended semantics</span>.</p>
+  <p class="big fragment accent" style="margin-top:1.1em;">What evidence would convince <em>you</em><br/>that a learned concept means<br/>what you think it means?</p>
+  <p class="fragment note" style="margin-top:1.2em;">Every diagnostic in this deck is runnable, end to end.<br/><code>reasoning_shortcuts.ipynb</code></p>
+</section>
+
+</div>
+</div>
+
+<script src="../reveal.js/dist/reveal.js"></script>
+<script src="../reveal.js/dist/plugin/notes.js"></script>
+<script src="../reveal.js/dist/plugin/highlight.js"></script>
+<script>
+  var DECK_H = 800;
+
+  // Each slide's content is moved into a .fit-wrap so it can be scaled as one block.
+  function wrapSlide(section) {
+    var wrap = section.querySelector(':scope > .fit-wrap');
+    if (!wrap) {
+      wrap = document.createElement('div');
+      wrap.className = 'fit-wrap';
+      while (section.firstChild) { wrap.appendChild(section.firstChild); }
+      section.appendChild(wrap);
+    }
+    return wrap;
+  }
+
+  // Reveal hides every slide but the current one, and a hidden element measures as
+  // zero, so each slide is briefly forced visible (and transparent) to be measured.
+  function measureSlide(section, wrap) {
+    var display = section.style.display;
+    var visibility = section.style.visibility;
+    var transform = wrap.style.transform;
+    section.style.display = 'block';
+    section.style.visibility = 'hidden';
+    wrap.style.transform = 'none';
+    var height = wrap.offsetHeight;
+    wrap.style.transform = transform;
+    section.style.display = display;
+    section.style.visibility = visibility;
+    return height;
+  }
+
+  // Any slide taller than the deck canvas is scaled down in place, so content can
+  // never run off the bottom of the screen.
+  function fitSlides() {
+    var slides = document.querySelectorAll('.reveal .slides > section');
+    var report = [];
+    for (var i = 0; i < slides.length; i++) {
+      var wrap = wrapSlide(slides[i]);
+      wrap.style.transformOrigin = 'top center';
+      var natural = measureSlide(slides[i], wrap);
+      if (natural > DECK_H) {
+        wrap.style.transform = 'scale(' + Math.max(0.55, DECK_H / natural) + ')';
+        report.push((i + 1) + ':' + Math.round(natural));
+      } else {
+        wrap.style.transform = '';
+      }
+    }
+    return report;
+  }
+
+  // Prints which slides needed scaling, so headless runs can check the layout.
+  function auditSlides() {
+    var report = fitSlides();
+    var node = document.getElementById('audit');
+    if (!node) {
+      node = document.createElement('pre');
+      node.id = 'audit';
+      node.style.cssText = 'position:fixed;left:0;top:0;right:0;z-index:9999;margin:0;padding:8px;' +
+        'background:#000;color:#4fd1c5;font:16px Consolas,monospace;white-space:pre-wrap;';
+      document.body.appendChild(node);
+    }
+    node.textContent = 'AUDIT_OVERFLOW ' + (report.length ? report.join(' ') : 'none');
+  }
+
+  function refit() {
+    if (location.search.indexOf('audit') !== -1) { auditSlides(); } else { fitSlides(); }
+  }
+
+  function afterReady() {
+    refit();
+    if (document.fonts) { document.fonts.ready.then(refit); }
+    var images = document.querySelectorAll('.reveal img');
+    for (var i = 0; i < images.length; i++) {
+      if (!images[i].complete) { images[i].addEventListener('load', refit); }
+    }
+  }
+
+  var deck = Reveal.initialize({
+    width: 1120,
+    height: DECK_H,
+    margin: 0.04,
+    minScale: 0.2,
+    maxScale: 1.6,
+    hash: true,
+    center: false,
+    controls: true,
+    progress: true,
+    transition: 'slide',
+    plugins: [ RevealNotes, RevealHighlight ]
+  });
+
+  if (deck && deck.then) { deck.then(afterReady); } else { Reveal.on('ready', afterReady); }
+  window.addEventListener('resize', refit);
+  // Images and webfonts settle after Reveal is ready, so measure once more afterwards.
+  setTimeout(refit, 1200);
+</script>
+</body>
+</html>

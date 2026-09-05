@@ -216,3 +216,20 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ---------------------------------------------------------------
+# Project specific
+# ---------------------------------------------------------------
+
+# MNIST is downloaded by torchvision on first run, so it is not tracked.
+data/
+
+# Local agent configuration.
+.claude/
+
+# Vendored reveal.js v6. Only dist/ is needed to render the deck offline,
+# and it must be re-included explicitly because the template above ignores dist/.
+reveal.js/*
+!reveal.js/dist/
+!reveal.js/dist/**
+!reveal.js/LICENSE
