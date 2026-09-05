@@ -233,3 +233,10 @@ reveal.js/*
 !reveal.js/dist/
 !reveal.js/dist/**
 !reveal.js/LICENSE
+
+# LaTeX build artifacts
+*.aux
+*.out
+*.synctex.gz
+*.fls
+*.fdb_latexmk

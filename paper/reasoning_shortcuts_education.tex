@@ -1,0 +1,132 @@
+\documentclass{article}
+
+% NeurIPS 2026 Education Track. The "education" option is non-anonymous,
+% which matches the track's single-blind review with author names included.
+\usepackage[education, final]{neurips_2026}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{amsfonts}
+
+\title{Right Answer, Wrong Concept:\\Teaching Reasoning Shortcuts in Neurosymbolic Learning}
+
+\author{%
+  Victoria McCray\\
+  Northeastern University\\
+  \texttt{mccray.v@northeastern.edu}
+}
+
+\begin{document}
+
+\maketitle
+
+\section{The concept}
+
+Reasoning shortcuts are high-performing solutions in neurosymbolic learning in
+which learned concepts acquire unintended semantics while remaining compatible
+with task supervision and symbolic reasoning. Following Marconato et al.
+(2023), a reasoning shortcut is a learned concept distribution satisfying two
+conditions jointly: it attains maximal or near maximal likelihood on the
+training objective, and it diverges from ground truth concept semantics. Both
+conditions matter, because a low concept score alone is equally consistent with
+an undertrained or poorly optimised model, an ordinary engineering failure with
+an ordinary fix. Separating those two cases is the central skill taught here.
+
+The resource uses progressively richer interactive examples, from exhaustive
+Boolean reasoning to MNIST and simulated driving, to teach how such shortcuts
+arise, how to distinguish them from optimisation failure, and how to evaluate
+and mitigate them. The resource is organised around four factors identified by
+Marconato et al.: prior knowledge, architecture, learning objective, and data
+support, each illustrated through a worked example. Throughout, task accuracy
+stays near its ceiling while concept quality ranges from 0.998 to 0.000, so
+learners see one metric hide four mechanisms needing four different diagnostics.
+
+\section{Leveling and prerequisite knowledge}
+
+The materials assume basic familiarity with supervised machine learning, neural
+networks, classification, train and test evaluation, and metrics such as
+accuracy and F1 score, together with elementary probability and Boolean logic.
+Prior knowledge of neurosymbolic learning, logic programming, or reasoning
+shortcuts is not required, and each term is defined at the point of use. The
+setup is introduced progressively through visual explanations and executable
+examples before moving to diagnosis and mitigation. The conceptual portions are
+accessible to a broad technical audience, while the notebook exercises and
+architecture comparisons are best suited to advanced undergraduate and early
+graduate instruction, as well as early-career scientists.
+
+\section{Learning objectives and outcomes}
+
+By the end of the material a learner will be able to:
+
+\begin{itemize}
+  \item \textbf{Remember.} State the two-condition definition of a reasoning
+    shortcut and name the four factors governing whether one exists.
+  \item \textbf{Understand.} Explain reasoning shortcuts, distinguish task
+    performance from concept quality, and connect both to construct validity as
+    understood in measurement and in the fairness literature.
+  \item \textbf{Apply.} Run the diagnostics on a trained model, read a concept
+    confusion matrix, and experiment with mitigations such as concept
+    supervision and multi-task learning.
+  \item \textbf{Analyse.} Investigate why additional data may not eliminate a
+    shortcut when concept support is already exhaustive, and examine the
+    implications for out-of-distribution generalisation.
+  \item \textbf{Evaluate.} Judge whether a result establishes concept grounding:
+    ruling out optimisation failure with a ceiling check, recognising that
+    constraint satisfaction can hold by construction, and rejecting averaged
+    scores that hide a concept at zero.
+  \item \textbf{Create.} Design a task and rule inducing a shortcut by
+    construction, and specify a diagnostic protocol naming the factor at issue
+    and the measurement exposing it.
+\end{itemize}
+
+\section{Linked papers}
+
+\begin{itemize}
+  \item E. Marconato, S. Teso, A. Vergari, A. Passerini. \emph{Not All
+    Neuro-Symbolic Concepts Are Created Equal.} NeurIPS 2023, arXiv:2305.19951.
+    Formalises reasoning shortcuts and identifies the four governing factors.
+  \item S. Bortolotti, E. Marconato, T. Carraro, P. Morettin, et al. \emph{A
+    Neuro-Symbolic Benchmark Suite for Concept Quality and Reasoning Shortcuts.}
+    NeurIPS Datasets and Benchmarks 2024, arXiv:2406.10368. Contributes
+    \texttt{rsbench}, which counts the shortcuts a task admits.
+  \item E. Marconato, S. Bortolotti, E. van Krieken, A. Vergari, A. Passerini,
+    S. Teso. \emph{BEARS Make Neuro-Symbolic Models Aware of their Reasoning
+    Shortcuts.} UAI 2024, arXiv:2402.12240. Calibrates rather than eliminates.
+  \item X. Yang et al. \emph{Analysis for Abductive Learning and Neural-Symbolic
+    Reasoning Shortcuts.} ICML 2024. Bounds shortcut risk by knowledge base
+    complexity, sample size and hypothesis space.
+  \item E. van Krieken, P. Minervini, E. Ponti, A. Vergari. \emph{Neurosymbolic
+    Reasoning Shortcuts under the Independence Assumption.} NeSy 2025,
+    arXiv:2507.11357. Proves independence blocks uncertainty over combinations.
+  \item A. Takemura, K. Inoue, M. Nishino. \emph{Constraint-Based Analysis of
+    Reasoning Shortcuts in Neurosymbolic Learning.} 2026, arXiv:2604.23377.
+    Deciding shortcut freeness is coNP-complete.
+\end{itemize}
+
+\section{Teaching materials summary}
+
+All materials are at
+\url{https://github.com/victoriamccray/neurosymbolic-reasoning-shortcuts}
+under the MIT licence.
+
+\textbf{Interactive lesson.} A 31 slide reveal.js deck in eight sections,
+opening on Clever Hans as a cross-domain hook and closing on a learner
+challenge. It runs offline with no build step, carries alternative text on every
+figure, respects \texttt{prefers-reduced-motion}, and measures each slide so
+none can overflow when projected.
+
+\textbf{Notebook.} A 26 cell Jupyter notebook making every diagnostic runnable
+end to end: the XOR enumeration, the entangled against disentangled encoder
+comparison with per concept F1 and confusion matrices, and the confounded
+driving scenario with a shift test and an interactive supervision sweep. Each
+cell is paired with a plain language explanation of why it is there.
+
+\textbf{Evaluation guidance.} Mitigation is a measured trade-off, not a monotone
+improvement: concept supervision raises out-of-distribution accuracy from 0.535
+to 0.855 while in-distribution accuracy falls from 0.988 to 0.920. A closing
+checklist separates evidence supporting a semantic claim from evidence leaving
+it open, and one result is deliberately marked as cited rather than reproduced.
+
+\end{document}
