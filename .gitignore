@@ -240,3 +240,6 @@ reveal.js/*
 *.synctex.gz
 *.fls
 *.fdb_latexmk
+
+# Built submission archive
+*-materials.zip
